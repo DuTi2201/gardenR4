@@ -10,6 +10,11 @@ const mqttService = require('../services/mqttService');
  */
 exports.getImages = async (req, res, next) => {
   try {
+    console.log('====== GET GARDEN IMAGES =======');
+    console.log('Garden ID:', req.params.id);
+    console.log('User:', req.user ? req.user._id : 'No user');
+    console.log('==================================');
+    
     const garden = await Garden.findById(req.params.id);
     
     if (!garden) {
@@ -19,25 +24,72 @@ exports.getImages = async (req, res, next) => {
       });
     }
     
-    // Kiểm tra xem người dùng có quyền truy cập vườn này không
-    if (garden.user_id.toString() !== req.user._id.toString()) {
+    // Kiểm tra quyền truy cập
+    // Skip kiểm tra nếu user là admin
+    if (req.user.role !== 'admin' && garden.user_id.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Bạn không có quyền truy cập vườn này'
       });
     }
     
-    // Lấy danh sách hình ảnh, sắp xếp theo thời gian mới nhất
+    // Kiểm tra xem vườn có camera không
+    if (!garden.has_camera) {
+      console.log(`Garden ${garden._id} không có camera`);
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: {
+          garden,
+          images: []
+        },
+        message: 'Vườn này không có camera'
+      });
+    }
+    
+    // Tìm kiếm các hình ảnh của vườn
+    const { limit = 10, page = 1 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
     const images = await Image.find({ garden_id: garden._id })
       .sort({ timestamp: -1 })
-      .limit(req.query.limit ? parseInt(req.query.limit) : 20);
+      .skip(skip)
+      .limit(parseInt(limit));
     
-    res.status(200).json({
+    const total = await Image.countDocuments({ garden_id: garden._id });
+    
+    // Nếu không có hình ảnh, trả về mảng rỗng
+    if (images.length === 0) {
+      console.log(`Không tìm thấy hình ảnh cho vườn ${garden._id}`);
+      
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        total: 0,
+        page: parseInt(page),
+        pages: 0,
+        data: {
+          garden,
+          images: []
+        },
+        message: 'Chưa có hình ảnh nào cho vườn này'
+      });
+    }
+    
+    // Trả về hình ảnh thực
+    return res.status(200).json({
       success: true,
       count: images.length,
-      data: images
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / parseInt(limit)),
+      data: {
+        garden,
+        images
+      }
     });
   } catch (error) {
+    console.error('Lỗi khi lấy danh sách hình ảnh:', error);
     next(error);
   }
 };

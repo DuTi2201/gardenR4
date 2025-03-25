@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGarden } from '../context/GardenContext';
 import { useSocket } from '../context/SocketContext';
+import { useAuth } from '../context/AuthContext';
 import MainLayout from '../components/Layout/MainLayout';
 import { sensorService, deviceService } from '../services';
 import {
@@ -33,6 +34,7 @@ import {
   Grass,
   WaterDrop,
   GrassOutlined,
+  AdminPanelSettings,
 } from '@mui/icons-material';
 import { Line } from 'react-chartjs-2';
 import {
@@ -61,6 +63,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { currentGarden, gardens, loading: gardensLoading, error: gardensError } = useGarden();
   const { subscribe, unsubscribe, joinGardenRoom } = useSocket();
+  const { currentUser } = useAuth();
   
   const [selectedGarden, setSelectedGarden] = useState(null);
   const [sensorData, setSensorData] = useState(null);
@@ -74,6 +77,9 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chartData, setChartData] = useState(null);
+
+  // Kiểm tra xem người dùng có phải admin hay không
+  const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.email === 'admin@smartgarden.com');
 
   useEffect(() => {
     if (currentGarden) {
@@ -291,6 +297,17 @@ const Dashboard = () => {
             </Grid>
             <Grid item xs={12} md={6}>
               <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
+                {isAdmin && (
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    startIcon={<AdminPanelSettings />}
+                    onClick={() => navigate('/admin')}
+                    sx={{ mr: 2 }}
+                  >
+                    Quản trị hệ thống
+                  </Button>
+                )}
                 <FormControl sx={{ minWidth: 200 }}>
                   <InputLabel id="garden-select-label">Chọn vườn</InputLabel>
                   <Select

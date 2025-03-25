@@ -4,23 +4,10 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
-import { AuthProvider } from './context/AuthContext';
-import { GardenProvider } from './context/GardenContext';
-import { SocketProvider } from './context/SocketContext';
-import { NotificationProvider } from './context/NotificationContext';
-
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <AuthProvider>
-      <SocketProvider>
-        <GardenProvider>
-          <NotificationProvider>
-            <App />
-          </NotificationProvider>
-        </GardenProvider>
-      </SocketProvider>
-    </AuthProvider>
+    <App />
   </React.StrictMode>
 );
 

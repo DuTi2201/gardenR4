@@ -235,6 +235,11 @@ exports.analyzeGarden = async (req, res, next) => {
  */
 exports.getLatestAnalysis = async (req, res, next) => {
   try {
+    console.log('====== GET LATEST ANALYSIS =======');
+    console.log('Garden ID:', req.params.id);
+    console.log('User:', req.user ? req.user._id : 'No user');
+    console.log('==================================');
+    
     const garden = await Garden.findById(req.params.id);
     
     if (!garden) {
@@ -245,38 +250,36 @@ exports.getLatestAnalysis = async (req, res, next) => {
     }
     
     // Kiểm tra xem người dùng có quyền truy cập vườn này không
-    if (garden.user_id.toString() !== req.user._id.toString()) {
+    // Skip kiểm tra nếu user là admin
+    if (req.user.role !== 'admin' && garden.user_id.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Bạn không có quyền truy cập vườn này'
       });
     }
     
-    // Tìm hình ảnh có kết quả phân tích mới nhất
-    const imageWithAnalysis = await Image.findOne({
+    // Lấy kết quả phân tích gần nhất từ hình ảnh
+    const latestImage = await Image.findOne({ 
       garden_id: garden._id,
       'analysis.status': 'completed'
-    }).sort({ 'analysis.timestamp': -1 });
+    }).sort({ timestamp: -1 });
     
-    if (!imageWithAnalysis || !imageWithAnalysis.analysis) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chưa có kết quả phân tích nào cho vườn này'
+    if (latestImage && latestImage.analysis && latestImage.analysis.result) {
+      return res.status(200).json({
+        success: true,
+        data: latestImage.analysis.result,
+        timestamp: latestImage.analysis.timestamp
       });
     }
     
-    res.status(200).json({
-      success: true,
-      data: {
-        analysis: imageWithAnalysis.analysis,
-        image: {
-          id: imageWithAnalysis._id,
-          url: imageWithAnalysis.url,
-          timestamp: imageWithAnalysis.timestamp
-        }
-      }
+    // Không có dữ liệu phân tích, trả về lỗi 404
+    return res.status(404).json({
+      success: false,
+      message: 'Không tìm thấy dữ liệu phân tích cho vườn này',
+      error: 'NO_ANALYSIS_DATA'
     });
   } catch (error) {
+    console.error('Lỗi khi lấy kết quả phân tích:', error);
     next(error);
   }
 };

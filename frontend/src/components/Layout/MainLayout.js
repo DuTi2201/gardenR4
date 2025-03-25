@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
+import useMascotTriggers from '../../hooks/useMascotTriggers';
 import {
   AppBar,
   Box,
@@ -31,6 +32,7 @@ import {
   Logout,
   Settings,
   Add,
+  AdminPanelSettings,
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
@@ -43,6 +45,12 @@ const MainLayout = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorElUser, setAnchorElUser] = useState(null);
   const [anchorElNotifications, setAnchorElNotifications] = useState(null);
+
+  // Kiểm tra xem người dùng có phải admin hay không
+  const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.email === 'admin@smartgarden.com');
+
+  // Kích hoạt các trigger linh vật
+  useMascotTriggers();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -201,13 +209,15 @@ const MainLayout = ({ children }) => {
                 open={Boolean(anchorElUser)}
                 onClose={handleCloseUserMenu}
               >
-                <MenuItem onClick={() => navigate('/profile')}>
-                  <ListItemIcon>
-                    <AccountCircle fontSize="small" />
-                  </ListItemIcon>
-                  <Typography textAlign="center">Hồ sơ</Typography>
-                </MenuItem>
-                <MenuItem onClick={() => navigate('/profile/settings')}>
+                {isAdmin && (
+                  <MenuItem onClick={() => navigate('/admin')}>
+                    <ListItemIcon>
+                      <AdminPanelSettings fontSize="small" />
+                    </ListItemIcon>
+                    <Typography textAlign="center">Quản trị hệ thống</Typography>
+                  </MenuItem>
+                )}
+                <MenuItem onClick={() => navigate('/settings/profile')}>
                   <ListItemIcon>
                     <Settings fontSize="small" />
                   </ListItemIcon>

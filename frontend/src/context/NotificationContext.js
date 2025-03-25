@@ -17,10 +17,12 @@ export const NotificationProvider = ({ children }) => {
   const { currentUser } = useAuth();
 
   useEffect(() => {
-    if (currentUser) {
+    // Kiểm tra người dùng đã đăng nhập trước khi tải thông báo
+    const token = localStorage.getItem('token');
+    if (token) {
       fetchNotifications();
     }
-  }, [currentUser]);
+  }, []);
 
   useEffect(() => {
     if (socket) {

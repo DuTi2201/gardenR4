@@ -8,41 +8,44 @@ export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
-  const [connected, setConnected] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
   const { currentUser } = useAuth();
 
   useEffect(() => {
-    // Chỉ kết nối socket nếu người dùng đã đăng nhập
-    if (currentUser) {
-      const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
-      
-      const newSocket = io(SOCKET_URL, {
-        auth: {
-          token: localStorage.getItem('token')
-        }
-      });
-
-      newSocket.on('connect', () => {
-        console.log('Socket connected!');
-        setConnected(true);
-      });
-
-      newSocket.on('disconnect', () => {
-        console.log('Socket disconnected!');
-        setConnected(false);
-      });
-
-      newSocket.on('error', (error) => {
-        console.error('Socket error:', error);
-      });
-
-      setSocket(newSocket);
-
-      // Cleanup khi component unmount
-      return () => {
-        newSocket.disconnect();
-      };
+    // Kiểm tra đăng nhập trước khi kết nối socket
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return; // Không kết nối nếu chưa đăng nhập
     }
+
+    const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
+    
+    const socketInstance = io(SOCKET_URL, {
+      auth: {
+        token
+      }
+    });
+
+    socketInstance.on('connect', () => {
+      console.log('Socket connected!');
+      setIsConnected(true);
+    });
+
+    socketInstance.on('disconnect', () => {
+      console.log('Socket disconnected!');
+      setIsConnected(false);
+    });
+
+    socketInstance.on('error', (error) => {
+      console.error('Socket error:', error);
+    });
+
+    setSocket(socketInstance);
+
+    // Cleanup khi component unmount
+    return () => {
+      socketInstance.disconnect();
+    };
   }, [currentUser]);
 
   // Tham gia vào phòng cho vườn cụ thể
@@ -68,7 +71,7 @@ export const SocketProvider = ({ children }) => {
 
   const value = {
     socket,
-    connected,
+    isConnected,
     joinGardenRoom,
     subscribe,
     unsubscribe,

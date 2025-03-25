@@ -9,6 +9,8 @@ import { GardenProvider } from './context/GardenContext';
 import { SocketProvider } from './context/SocketContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { useAuth } from './context/AuthContext';
+import { MascotProvider } from './components/Mascot/MascotContext';
+import MascotContainer from './components/Mascot/MascotContainer';
 
 // Pages
 import Login from './pages/Login';
@@ -18,7 +20,14 @@ import GardenList from './pages/GardenList';
 import GardenDetail from './pages/GardenDetail';
 import GardenForm from './pages/GardenForm';
 import Profile from './pages/Profile';
+import Notifications from './pages/Notifications';
 import NotFound from './pages/NotFound';
+
+// Admin pages
+import AdminDashboard from './pages/admin/Dashboard';
+import DeviceSerials from './pages/admin/DeviceSerials';
+import UserManagement from './pages/admin/UserManagement';
+import AdminGardens from './pages/admin/Gardens';
 
 // Tạo theme cho MUI
 const theme = createTheme({
@@ -39,90 +48,194 @@ const theme = createTheme({
 });
 
 // Route được bảo vệ, chỉ cho phép người dùng đã đăng nhập
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, requireAdmin = false }) => {
   const { currentUser, loading } = useAuth();
 
   if (loading) {
     return <div>Đang tải...</div>;
   }
 
+  console.log('ProtectedRoute check:', {
+    currentUser,
+    requireAdmin,
+    isAdmin: currentUser?.role === 'admin'
+  });
+
   if (!currentUser) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Kiểm tra quyền admin nếu cần
+  if (requireAdmin && currentUser.role !== 'admin') {
+    console.log('Access denied - not an admin');
+    return <Navigate to="/" replace />;
   }
 
   return children;
 };
 
 function App() {
+  console.log('App rendering, current pathname:', window.location.pathname);
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Router>
         <AuthProvider>
-          <SocketProvider>
-            <GardenProvider>
-              <NotificationProvider>
-                <Routes>
-                  {/* Public routes */}
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
+          <MascotProvider>
+            <Routes>
+              {/* Public routes - không cần GardenProvider và SocketProvider */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="*" element={<NotFound />} />
 
-                  {/* Protected routes */}
-                  <Route 
-                    path="/" 
-                    element={
-                      <ProtectedRoute>
-                        <Dashboard />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/gardens" 
-                    element={
-                      <ProtectedRoute>
-                        <GardenList />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/gardens/new" 
-                    element={
-                      <ProtectedRoute>
-                        <GardenForm />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/gardens/:gardenId" 
-                    element={
-                      <ProtectedRoute>
-                        <GardenDetail />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/gardens/:gardenId/edit" 
-                    element={
-                      <ProtectedRoute>
-                        <GardenForm />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/profile" 
-                    element={
-                      <ProtectedRoute>
-                        <Profile />
-                      </ProtectedRoute>
-                    } 
-                  />
+              {/* Protected routes - cần GardenProvider và SocketProvider */}
+              <Route 
+                path="/" 
+                element={
+                  <ProtectedRoute>
+                    <SocketProvider>
+                      <NotificationProvider>
+                        <GardenProvider>
+                          <Dashboard />
+                        </GardenProvider>
+                      </NotificationProvider>
+                    </SocketProvider>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* Tương tự cho các route được bảo vệ khác */}
+              <Route 
+                path="/gardens" 
+                element={
+                  <ProtectedRoute>
+                    <SocketProvider>
+                      <NotificationProvider>
+                        <GardenProvider>
+                          <GardenList />
+                        </GardenProvider>
+                      </NotificationProvider>
+                    </SocketProvider>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/gardens/new" 
+                element={
+                  <ProtectedRoute>
+                    <SocketProvider>
+                      <NotificationProvider>
+                        <GardenProvider>
+                          <GardenForm />
+                        </GardenProvider>
+                      </NotificationProvider>
+                    </SocketProvider>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/gardens/:gardenId" 
+                element={
+                  <ProtectedRoute>
+                    <SocketProvider>
+                      <NotificationProvider>
+                        <GardenProvider>
+                          <GardenDetail />
+                        </GardenProvider>
+                      </NotificationProvider>
+                    </SocketProvider>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/gardens/:gardenId/edit" 
+                element={
+                  <ProtectedRoute>
+                    <SocketProvider>
+                      <NotificationProvider>
+                        <GardenProvider>
+                          <GardenForm />
+                        </GardenProvider>
+                      </NotificationProvider>
+                    </SocketProvider>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/notifications" 
+                element={
+                  <ProtectedRoute>
+                    <SocketProvider>
+                      <NotificationProvider>
+                        <Notifications />
+                      </NotificationProvider>
+                    </SocketProvider>
+                  </ProtectedRoute>
+                } 
+              />
 
-                  {/* 404 route */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </NotificationProvider>
-            </GardenProvider>
-          </SocketProvider>
+              <Route 
+                path="/settings/profile" 
+                element={
+                  <ProtectedRoute>
+                    <SocketProvider>
+                      <NotificationProvider>
+                        <GardenProvider>
+                          <Profile />
+                        </GardenProvider>
+                      </NotificationProvider>
+                    </SocketProvider>
+                  </ProtectedRoute>
+                } 
+              />
+
+              {/* Admin Routes */}
+              <Route 
+                path="/admin" 
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/admin/device-serials" 
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <DeviceSerials />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/admin/users" 
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <UserManagement />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/admin/gardens" 
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <GardenProvider>
+                      <AdminGardens />
+                    </GardenProvider>
+                  </ProtectedRoute>
+                } 
+              />
+            </Routes>
+            
+            {/* Linh vật xuất hiện ở mọi trang */}
+            <MascotContainer />
+          </MascotProvider>
         </AuthProvider>
       </Router>
     </ThemeProvider>

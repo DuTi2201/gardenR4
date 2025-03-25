@@ -12,7 +12,11 @@ export const GardenProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchGardens();
+    // Chỉ tải dữ liệu vườn khi người dùng đã đăng nhập (có token)
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetchGardens();
+    }
   }, []);
 
   const fetchGardens = async () => {
@@ -34,13 +38,33 @@ export const GardenProvider = ({ children }) => {
   const getGardenById = async (gardenId) => {
     try {
       setLoading(true);
-      const data = await gardenService.getGardenById(gardenId);
-      setCurrentGarden(data.garden);
-      return data.garden;
-    } catch (err) {
-      setError(err.response?.data?.message || 'Không thể tải chi tiết vườn');
-      console.error('Lỗi khi tải chi tiết vườn:', err);
-      throw err;
+      setError(null);
+      console.log('Fetching garden with ID:', gardenId);
+      
+      const response = await gardenService.getGardenById(gardenId);
+      console.log('Garden service response:', response);
+      
+      if (response && response.garden) {
+        setCurrentGarden(response.garden);
+        setGardens(prevGardens => {
+          const index = prevGardens.findIndex(g => g._id === gardenId);
+          if (index !== -1) {
+            const newGardens = [...prevGardens];
+            newGardens[index] = response.garden;
+            return newGardens;
+          }
+          return [...prevGardens, response.garden];
+        });
+        return response.garden;
+      } else {
+        console.error('Invalid garden data structure:', response);
+        setError('Dữ liệu vườn không hợp lệ');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error in getGardenById:', error);
+      setError(error.response?.data?.message || 'Không thể tải dữ liệu vườn');
+      return null;
     } finally {
       setLoading(false);
     }

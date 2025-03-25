@@ -11,19 +11,19 @@ async function addDeviceSerial() {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('Đã kết nối với MongoDB');
     
-    // Kiểm tra xem device_serial GARDEN8228 đã tồn tại chưa
-    const existing = await Garden.findOne({ device_serial: 'GARDEN8228' });
+    // Kiểm tra xem device_serial GARDEN9999 đã tồn tại chưa
+    const existing = await Garden.findOne({ device_serial: 'GARDEN9999' });
     if (existing) {
-      console.log('Mã thiết bị GARDEN8228 đã tồn tại trong cơ sở dữ liệu');
+      console.log('Mã thiết bị GARDEN9999 đã tồn tại trong cơ sở dữ liệu');
       mongoose.connection.close();
       return;
     }
     
     // Tạo bản ghi mới trong model Garden
     const garden = new Garden({
-      name: 'Auto Generated Garden',
-      description: 'Vườn tạo tự động cho mã GARDEN8228',
-      device_serial: 'GARDEN8228',
+      name: 'Vườn Arduino R4 WiFi',
+      description: 'Vườn tạo tự động cho mã GARDEN9999',
+      device_serial: 'GARDEN9999',
       user_id: '67e17804064a7a5c3e1ac297', // ID người dùng đã có
       has_camera: true,
       settings: {
@@ -41,7 +41,7 @@ async function addDeviceSerial() {
     
     // Lưu vào cơ sở dữ liệu
     await garden.save();
-    console.log('Đã thêm mã thiết bị GARDEN8228 vào cơ sở dữ liệu thành công!');
+    console.log('Đã thêm mã thiết bị GARDEN9999 vào cơ sở dữ liệu thành công!');
     
   } catch (error) {
     console.error('Lỗi:', error);

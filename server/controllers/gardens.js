@@ -3,6 +3,7 @@ const Garden = require('../models/Garden');
 const SensorData = require('../models/SensorData');
 const Device = require('../models/Device');
 const mqttService = require('../services/mqttService');
+const DeviceSerial = require('../models/DeviceSerial');
 
 /**
  * @desc    Lấy tất cả khu vườn của người dùng đang đăng nhập
@@ -54,13 +55,14 @@ exports.getGarden = async (req, res, next) => {
     // Lấy danh sách thiết bị
     const devices = await Device.find({ garden_id: garden._id });
     
+    // Thêm dữ liệu cảm biến và thiết bị vào đối tượng garden
+    const gardenData = garden.toObject();
+    gardenData.sensor_data = latestSensorData;
+    gardenData.devices = devices;
+    
     res.status(200).json({
       success: true,
-      data: {
-        garden,
-        latestSensorData,
-        devices
-      }
+      garden: gardenData
     });
   } catch (error) {
     next(error);
@@ -74,24 +76,56 @@ exports.getGarden = async (req, res, next) => {
  */
 exports.createGarden = async (req, res, next) => {
   try {
-    // Thêm user_id vào dữ liệu
+    // Thêm user_id vào dữ liệu vườn
     req.body.user_id = req.user._id;
     
-    // Kiểm tra xem tên khu vườn đã tồn tại chưa
-    const existingGarden = await Garden.findOne({ 
-      user_id: req.user._id,
-      name: req.body.name
-    });
-    
-    if (existingGarden) {
-      return res.status(400).json({
-        success: false,
-        message: 'Bạn đã có khu vườn với tên này'
+    // Kiểm tra xem người dùng đã có vườn với mã thiết bị này chưa
+    if (req.body.device_serial) {
+      const existingGarden = await Garden.findOne({
+        user_id: req.user._id,
+        device_serial: req.body.device_serial
       });
+      
+      if (existingGarden) {
+        return res.status(400).json({
+          success: false,
+          message: 'Bạn đã có vườn với mã thiết bị này'
+        });
+      }
+      
+      // Kiểm tra và cập nhật trạng thái của DeviceSerial
+      const deviceSerial = await DeviceSerial.findOne({ serial: req.body.device_serial });
+      
+      if (!deviceSerial) {
+        return res.status(400).json({
+          success: false,
+          message: 'Mã thiết bị không tồn tại trong hệ thống'
+        });
+      }
+      
+      if (deviceSerial.is_activated) {
+        return res.status(400).json({
+          success: false,
+          message: 'Mã thiết bị đã được kích hoạt bởi vườn khác'
+        });
+      }
     }
     
-    // Tạo khu vườn mới
+    // Tạo vườn mới
     const garden = await Garden.create(req.body);
+    
+    // Cập nhật trạng thái của DeviceSerial nếu có
+    if (req.body.device_serial) {
+      await DeviceSerial.findOneAndUpdate(
+        { serial: req.body.device_serial },
+        { 
+          is_activated: true,
+          activated_by: req.user._id,
+          garden_id: garden._id,
+          activation_date: new Date()
+        }
+      );
+    }
     
     res.status(201).json({
       success: true,
@@ -303,7 +337,25 @@ exports.verifyDeviceSerial = async (req, res, next) => {
       });
     }
     
-    // Kiểm tra xem mã thiết bị đã được đăng ký chưa
+    // Kiểm tra xem mã thiết bị có tồn tại trong bảng DeviceSerial không
+    const deviceSerialRecord = await DeviceSerial.findOne({ serial: deviceSerial });
+    
+    if (!deviceSerialRecord) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã thiết bị không tồn tại trong hệ thống'
+      });
+    }
+    
+    // Kiểm tra xem thiết bị đã được kích hoạt chưa
+    if (deviceSerialRecord.is_activated) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã thiết bị đã được kích hoạt bởi vườn khác'
+      });
+    }
+    
+    // Kiểm tra xem mã thiết bị đã được đăng ký cho vườn nào chưa
     const garden = await Garden.findOne({ device_serial: deviceSerial });
     
     if (garden) {
@@ -330,6 +382,7 @@ exports.verifyDeviceSerial = async (req, res, next) => {
       }
     });
   } catch (error) {
+    console.error('Error in verifyDeviceSerial:', error);
     next(error);
   }
 }; 

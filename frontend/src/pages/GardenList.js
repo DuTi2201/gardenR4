@@ -132,8 +132,8 @@ const GardenList = () => {
                   <CardMedia
                     component="img"
                     height="140"
-                    image={garden.image || 'https://source.unsplash.com/random/?garden'}
-                    alt={garden.name}
+                    image={(garden && garden.image) ? garden.image : 'https://source.unsplash.com/random/?garden'}
+                    alt={garden ? garden.name : 'Garden'}
                   />
                   <CardContent sx={{ flexGrow: 1 }}>
                     <Typography variant="h5" component="div" gutterBottom>

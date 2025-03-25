@@ -7,24 +7,47 @@ const SensorData = require('../models/SensorData');
 
 /**
  * @desc    Lấy danh sách thiết bị của khu vườn
- * @route   GET /api/gardens/:gardenId/devices
+ * @route   GET /api/gardens/:id/devices
  * @access  Private
  */
 exports.getDevices = async (req, res, next) => {
   try {
-    const { gardenId } = req.params;
+    console.log('========= DEBUG DEVICES REQUEST =========');
+    console.log('Request URL:', req.originalUrl);
+    console.log('Request Method:', req.method);
+    console.log('Request params:', req.params);
+    console.log('User ID:', req.user ? req.user._id : 'No user ID');
+    console.log('User Role:', req.user ? req.user.role : 'No user role');
+    console.log('============================================');
+    
+    // Sử dụng id thay vì gardenId để phù hợp với tham số URL
+    const gardenId = req.params.id;
+    console.log(`Đang lấy danh sách thiết bị cho vườn ID: ${gardenId}`);
+    
+    if (!mongoose.Types.ObjectId.isValid(gardenId)) {
+      console.log(`Garden ID không hợp lệ: ${gardenId}`);
+      return res.status(400).json({
+        success: false,
+        message: 'ID vườn không hợp lệ'
+      });
+    }
 
     // Kiểm tra xem khu vườn có tồn tại không
     const garden = await Garden.findById(gardenId);
     if (!garden) {
+      console.log(`Không tìm thấy vườn với ID: ${gardenId}`);
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy khu vườn với ID này'
       });
     }
+    
+    console.log(`Đã tìm thấy vườn: ${garden.name}, thuộc về user: ${garden.user_id}`);
 
     // Kiểm tra quyền truy cập
-    if (garden.user_id.toString() !== req.user._id.toString()) {
+    // Skip kiểm tra quyền nếu người dùng là admin
+    if (req.user.role !== 'admin' && garden.user_id.toString() !== req.user._id.toString()) {
+      console.log(`Người dùng ${req.user._id} không có quyền truy cập vườn ${garden._id} (thuộc về ${garden.user_id})`);
       return res.status(403).json({
         success: false,
         message: 'Không có quyền truy cập khu vườn này'
@@ -33,13 +56,67 @@ exports.getDevices = async (req, res, next) => {
 
     // Lấy danh sách thiết bị
     const devices = await Device.find({ garden_id: gardenId });
+    console.log(`Tìm thấy ${devices.length} thiết bị cho vườn ID: ${gardenId}`);
     
-    res.status(200).json({
+    // Nếu có thiết bị, trả về danh sách
+    if (devices.length > 0) {
+      return res.status(200).json({
+        success: true,
+        count: devices.length,
+        data: devices
+      });
+    }
+    
+    // Nếu không có thiết bị và client yêu cầu dữ liệu giả, tạo dữ liệu giả
+    // Kiểm tra query param mock=true hoặc mặc định cho phép dữ liệu giả
+    const allowMock = req.query.mock === 'true' || true;
+    
+    if (allowMock) {
+      console.log(`Không tìm thấy thiết bị thật cho vườn ID: ${gardenId}, trả về dữ liệu mẫu`);
+      
+      // Lấy dữ liệu cảm biến mới nhất để biết trạng thái
+      const latestSensorData = await SensorData.findOne({ garden_id: garden._id })
+        .sort({ timestamp: -1 });
+      
+      // Trạng thái mặc định
+      let deviceStatus = {
+        fan: false,
+        light: false,
+        pump: false,
+        pump2: false,
+        auto_mode: garden.settings?.auto_mode || false
+      };
+      
+      // Nếu có dữ liệu cảm biến, cập nhật trạng thái
+      if (latestSensorData) {
+        deviceStatus = {
+          fan: latestSensorData.fan_status || false,
+          light: latestSensorData.light_status || false,
+          pump: latestSensorData.pump_status || false,
+          pump2: latestSensorData.pump2_status || false,
+          auto_mode: latestSensorData.auto_mode || garden.settings?.auto_mode || false
+        };
+      }
+      
+      // Trả về cấu trúc đơn giản mà frontend có thể xử lý được
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: [],
+        devices: deviceStatus,
+        is_mock: true,
+        message: 'Trả về trạng thái thiết bị mẫu vì chưa có thiết bị thực'
+      });
+    }
+    
+    // Nếu không có thiết bị và không cho phép dữ liệu giả, trả về mảng rỗng
+    return res.status(200).json({
       success: true,
-      count: devices.length,
-      data: devices
+      count: 0,
+      data: []
     });
   } catch (error) {
+    console.error('Lỗi khi lấy danh sách thiết bị:', error);
     next(error);
   }
 };
@@ -80,24 +157,48 @@ exports.getDevice = async (req, res, next) => {
 
 /**
  * @desc    Tạo thiết bị mới
- * @route   POST /api/gardens/:gardenId/devices
+ * @route   POST /api/gardens/:id/devices
  * @access  Private
  */
 exports.createDevice = async (req, res, next) => {
   try {
-    const { gardenId } = req.params;
+    console.log('========= DEBUG CREATE DEVICE REQUEST =========');
+    console.log('Request URL:', req.originalUrl);
+    console.log('Request Method:', req.method);
+    console.log('Request params:', req.params);
+    console.log('Request body:', req.body);
+    console.log('User ID:', req.user ? req.user._id : 'No user ID');
+    console.log('User Role:', req.user ? req.user.role : 'No user role');
+    console.log('============================================');
+    
+    // Sử dụng id thay vì gardenId để phù hợp với tham số URL
+    const gardenId = req.params.id;
+    console.log(`Đang tạo thiết bị mới cho vườn ID: ${gardenId}`);
+
+    if (!mongoose.Types.ObjectId.isValid(gardenId)) {
+      console.log(`Garden ID không hợp lệ: ${gardenId}`);
+      return res.status(400).json({
+        success: false,
+        message: 'ID vườn không hợp lệ'
+      });
+    }
 
     // Kiểm tra xem khu vườn có tồn tại không
     const garden = await Garden.findById(gardenId);
     if (!garden) {
+      console.log(`Không tìm thấy vườn với ID: ${gardenId}`);
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy khu vườn với ID này'
       });
     }
+    
+    console.log(`Đã tìm thấy vườn: ${garden.name}, thuộc về user: ${garden.user_id}`);
 
     // Kiểm tra quyền truy cập
-    if (garden.user_id.toString() !== req.user._id.toString()) {
+    // Skip kiểm tra quyền nếu người dùng là admin
+    if (req.user.role !== 'admin' && garden.user_id.toString() !== req.user._id.toString()) {
+      console.log(`Người dùng ${req.user._id} không có quyền truy cập vườn ${garden._id} (thuộc về ${garden.user_id})`);
       return res.status(403).json({
         success: false,
         message: 'Không có quyền truy cập khu vườn này'
@@ -115,6 +216,7 @@ exports.createDevice = async (req, res, next) => {
       });
       
       if (existingDevice) {
+        console.log(`Device ID ${req.body.device_id} đã tồn tại trong vườn ${gardenId}`);
         return res.status(400).json({
           success: false,
           message: 'Thiết bị với ID này đã tồn tại trong khu vườn'
@@ -124,6 +226,7 @@ exports.createDevice = async (req, res, next) => {
     
     // Tạo thiết bị mới
     const device = await Device.create(req.body);
+    console.log(`Đã tạo thiết bị mới với ID: ${device._id}`);
     
     res.status(201).json({
       success: true,
@@ -131,6 +234,7 @@ exports.createDevice = async (req, res, next) => {
       data: device
     });
   } catch (error) {
+    console.error('Lỗi khi tạo thiết bị mới:', error);
     next(error);
   }
 };
@@ -222,70 +326,129 @@ exports.deleteDevice = async (req, res, next) => {
 };
 
 /**
- * @desc    Điều khiển thiết bị
- * @route   POST /api/devices/:id/control
+ * @desc    Điều khiển thiết bị trong khu vườn thông qua MQTT
+ * @route   POST /api/gardens/:id/devices/control
  * @access  Private
  */
 exports.controlDevice = async (req, res, next) => {
   try {
-    const { action, value } = req.body;
-    const device = await Device.findById(req.params.id);
+    console.log('========= DEBUG DEVICE CONTROL REQUEST =========');
+    console.log('Request URL:', req.originalUrl);
+    console.log('Request Method:', req.method);
+    console.log('Request params:', req.params);
+    console.log('Request body:', req.body);
+    console.log('User ID:', req.user ? req.user._id : 'No user ID');
+    console.log('User Role:', req.user ? req.user.role : 'No user role');
+    console.log('============================================');
     
-    if (!device) {
+    // Lấy ID vườn từ params
+    const gardenId = req.params.id;
+    console.log(`Đang xử lý yêu cầu điều khiển thiết bị cho vườn ID: ${gardenId}`);
+    
+    if (!mongoose.Types.ObjectId.isValid(gardenId)) {
+      console.log(`Garden ID không hợp lệ: ${gardenId}`);
+      return res.status(400).json({
+        success: false,
+        message: 'ID vườn không hợp lệ'
+      });
+    }
+    
+    // Lấy thông tin vườn
+    const garden = await Garden.findById(gardenId);
+    if (!garden) {
+      console.log(`Không tìm thấy vườn với ID: ${gardenId}`);
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy thiết bị với ID này'
+        message: 'Không tìm thấy vườn với ID này'
       });
     }
     
-    // Kiểm tra quyền truy cập
-    const garden = await Garden.findById(device.garden_id);
-    if (!garden || garden.user_id.toString() !== req.user._id.toString()) {
+    // Kiểm tra quyền truy cập vườn
+    if (req.user.role !== 'admin' && garden.user_id.toString() !== req.user._id.toString()) {
+      console.log(`Người dùng ${req.user._id} không có quyền truy cập vườn ${garden._id} (thuộc về ${garden.user_id})`);
       return res.status(403).json({
         success: false,
-        message: 'Không có quyền điều khiển thiết bị này'
+        message: 'Bạn không có quyền truy cập vườn này'
       });
     }
     
-    // Kiểm tra xem khu vườn có kết nối không
-    if (!garden.is_connected) {
+    // Lấy thông tin thiết bị và trạng thái từ body
+    const { device, action } = req.body;
+    
+    if (!device || action === undefined) {
       return res.status(400).json({
         success: false,
-        message: 'Thiết bị không trực tuyến. Không thể điều khiển'
+        message: 'Vui lòng cung cấp đầy đủ thông tin thiết bị và trạng thái'
       });
     }
     
-    // Kiểm tra hành động hợp lệ
-    if (!action) {
+    // Validate loại thiết bị
+    const validDevices = ['FAN', 'LIGHT', 'PUMP', 'PUMP_2', 'AUTO', 'ALL'];
+    if (!validDevices.includes(device)) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng cung cấp hành động'
+        message: 'Loại thiết bị không hợp lệ'
       });
     }
     
-    // Gửi lệnh điều khiển qua MQTT
-    mqttService.sendDeviceCommand(garden._id, device.device_id, action, value);
+    // Validate trạng thái
+    if (typeof action !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'Trạng thái phải là true hoặc false'
+      });
+    }
     
-    // Thêm lịch sử thiết bị
-    await DeviceHistory.create({
-      device_id: device._id,
-      garden_id: garden._id,
-      device: device.category,
-      action: action,
-      source: 'USER',
-      user_id: req.user._id
-    });
+    // Kiểm tra thiết bị có hoạt động không
+    if (!garden.is_connected && device !== 'AUTO') {
+      console.log(`Thiết bị ${garden.device_serial} không kết nối, không thể điều khiển`);
+      return res.status(400).json({
+        success: false,
+        message: 'Thiết bị không kết nối. Không thể điều khiển'
+      });
+    }
     
-    res.status(200).json({
-      success: true,
-      message: `Đã gửi lệnh ${action} tới thiết bị thành công`,
-      data: {
-        device: device.device_id,
-        action,
-        value
-      }
-    });
+    // Thực hiện điều khiển thiết bị qua MQTT Service
+    try {
+      // Tạo ID giao dịch cho theo dõi
+      const transactionId = new mongoose.Types.ObjectId().toString();
+      
+      // Gửi lệnh qua MQTT
+      await mqttService.sendCommand(garden.device_serial, device, action, req.user);
+      
+      // Lưu lịch sử hoạt động thiết bị
+      await DeviceHistory.create({
+        garden_id: garden._id,
+        user_id: req.user._id,
+        device: device,
+        action: action,
+        transaction_id: transactionId,
+        source: 'WEB',
+        timestamp: new Date()
+      });
+      
+      // Trả về phản hồi
+      return res.status(200).json({
+        success: true,
+        message: `Đã gửi lệnh ${action ? 'BẬT' : 'TẮT'} ${device} đến thiết bị ${garden.device_serial}`,
+        transaction_id: transactionId,
+        data: {
+          garden_id: garden._id,
+          device_serial: garden.device_serial,
+          device: device,
+          action: action
+        }
+      });
+    } catch (mqttError) {
+      console.error('Lỗi gửi lệnh MQTT:', mqttError);
+      return res.status(500).json({
+        success: false,
+        message: 'Lỗi khi gửi lệnh đến thiết bị',
+        error: mqttError.message
+      });
+    }
   } catch (error) {
+    console.error('Lỗi điều khiển thiết bị:', error);
     next(error);
   }
 };

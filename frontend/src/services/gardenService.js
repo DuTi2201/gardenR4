@@ -19,8 +19,49 @@ const gardenService = {
 
   // Lấy thông tin chi tiết của một vườn
   getGardenById: async (id) => {
-    const response = await api.get(`/gardens/${id}`);
-    return response.data;
+    try {
+      const response = await api.get(`/gardens/${id}`);
+      console.log('API Response:', response.data);
+      
+      // Nếu không có dữ liệu, trả về đối tượng với success=false
+      if (!response.data || !response.data.garden) {
+        return {
+          success: false,
+          message: 'Không tìm thấy dữ liệu vườn',
+          garden: {
+            _id: id,
+            name: 'Chưa có tên vườn',
+            description: 'Không có mô tả',
+            device_serial: 'Chưa kết nối',
+            last_connected: null,
+            is_connected: false,
+            has_camera: false,
+            sensor_data: null,
+            devices: []
+          }
+        };
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching garden:', error);
+      // Trả về đối tượng với success=false thay vì ném lỗi
+      return {
+        success: false,
+        message: error.message || 'Không thể tải dữ liệu vườn',
+        garden: {
+          _id: id,
+          name: 'Chưa có tên vườn',
+          description: 'Không có mô tả',
+          device_serial: 'Chưa kết nối',
+          last_connected: null,
+          is_connected: false,
+          has_camera: false,
+          sensor_data: null,
+          devices: []
+        }
+      };
+    }
   },
 
   // Tạo vườn mới

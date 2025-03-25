@@ -136,4 +136,42 @@ exports.deleteNotification = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+/**
+ * @desc    Tạo thông báo test
+ * @route   POST /api/notifications/test
+ * @access  Private
+ */
+exports.createTestNotification = async (req, res, next) => {
+  try {
+    const { garden_id, title, message, type } = req.body;
+    
+    if (!garden_id || !title || !message) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng cung cấp đầy đủ thông tin garden_id, title và message'
+      });
+    }
+    
+    // Tạo thông báo mới
+    const notification = new Notification({
+      user_id: req.user._id,
+      garden_id,
+      title,
+      message,
+      type: type || 'INFO',
+      timestamp: new Date()
+    });
+    
+    await notification.save();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Thông báo test đã được tạo thành công',
+      data: notification
+    });
+  } catch (error) {
+    next(error);
+  }
 }; 

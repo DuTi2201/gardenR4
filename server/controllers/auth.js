@@ -39,44 +39,77 @@ exports.register = async (req, res, next) => {
  * @route   POST /api/auth/login
  * @access  Public
  */
-exports.login = async (req, res, next) => {
+exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Kiểm tra email và password đã được gửi lên chưa
+    // Validate input
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng cung cấp email và mật khẩu'
+        message: 'Vui lòng nhập email và mật khẩu'
       });
     }
 
-    // Tìm người dùng theo email
+    // Check for user (lấy cả password để đối chiếu)
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
-      return res.status(401).json({
+      return res.status(404).json({
         success: false,
-        message: 'Email hoặc mật khẩu không đúng'
+        message: 'Không tìm thấy người dùng với email này'
       });
     }
 
-    // Kiểm tra mật khẩu
+    // Check if password matches using method from model
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Email hoặc mật khẩu không đúng'
+        message: 'Mật khẩu không đúng'
       });
     }
 
-    // Cập nhật thời gian đăng nhập
+    // Update last login time
     user.last_login = Date.now();
     await user.save();
 
-    // Gửi token đăng nhập
-    sendTokenResponse(user, 200, res);
+    // Create token
+    const token = user.getSignedJwtToken();
+
+    // Gán role cho admin
+    let userRole = email === 'admin@smartgarden.com' ? 'admin' : (user.role || 'user');
+    
+    console.log('User login info:', {
+      id: user._id,
+      email: user.email,
+      original_role: user.role,
+      assigned_role: userRole
+    });
+
+    // Return success response with token and user data
+    const response = {
+      success: true,
+      token: token,
+      user: {
+        id: user._id,
+        email: user.email,
+        fullname: user.fullname,
+        role: userRole,  // Gán role
+        avatar: user.avatar,
+        created_at: user.created_at,
+        last_login: user.last_login
+      }
+    };
+    
+    console.log('Final response:', response);
+    
+    return res.json(response);
   } catch (error) {
-    next(error);
+    console.error('Login error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Đã xảy ra lỗi máy chủ'
+    });
   }
 };
 
@@ -153,7 +186,7 @@ exports.updatePassword = async (req, res, next) => {
     await user.save();
     
     // Gửi token mới
-    sendTokenResponse(user, 200, res);
+    const token = user.getSignedJwtToken();res.status(200).json({success: true, token, user: {id: user._id, email: user.email, fullname: user.fullname, role: user.role, avatar: user.avatar, created_at: user.created_at, last_login: user.last_login}});
   } catch (error) {
     next(error);
   }
@@ -168,17 +201,24 @@ exports.updatePassword = async (req, res, next) => {
 const sendTokenResponse = (user, statusCode, res) => {
   // Tạo token
   const token = user.getSignedJwtToken();
-  
+
+  // Dữ liệu user để trả về
+  const userData = {
+    id: user._id,
+    email: user.email,
+    fullname: user.fullname,
+    role: user.role, // Đảm bảo gửi role
+    avatar: user.avatar,
+    created_at: user.created_at,
+    last_login: user.last_login
+  };
+
+  // Log để debug
+  console.log('User data being sent:', userData);
+
   res.status(statusCode).json({
     success: true,
     token,
-    user: {
-      id: user._id,
-      email: user.email,
-      fullname: user.fullname,
-      avatar: user.avatar,
-      created_at: user.created_at,
-      last_login: user.last_login
-    }
+    user: userData
   });
 }; 

@@ -1,5 +1,5 @@
 import api from './api';
-import authService from './authService';
+import { authService } from './authService';
 import gardenService from './gardenService';
 import deviceService from './deviceService';
 import sensorService from './sensorService';

@@ -9,17 +9,42 @@ const SensorData = require('../models/SensorData');
  */
 exports.getLatestSensorData = async (req, res, next) => {
   try {
-    const garden = await Garden.findById(req.params.id);
+    console.log('========= DEBUG SENSOR DATA REQUEST =========');
+    console.log('Request URL:', req.originalUrl);
+    console.log('Request Method:', req.method);
+    console.log('Request params:', req.params);
+    console.log('User ID:', req.user ? req.user._id : 'No user ID');
+    console.log('User Role:', req.user ? req.user.role : 'No user role');
+    console.log('============================================');
+    
+    // Lấy ID vườn từ params
+    const gardenId = req.params.id;
+    console.log(`Đang lấy dữ liệu cảm biến cho vườn ID: ${gardenId}`);
+    
+    if (!mongoose.Types.ObjectId.isValid(gardenId)) {
+      console.log(`Garden ID không hợp lệ: ${gardenId}`);
+      return res.status(400).json({
+        success: false,
+        message: 'ID vườn không hợp lệ'
+      });
+    }
+    
+    const garden = await Garden.findById(gardenId);
     
     if (!garden) {
+      console.log(`Không tìm thấy vườn với ID: ${gardenId}`);
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy vườn với ID này'
       });
     }
     
+    console.log(`Đã tìm thấy vườn: ${garden.name}, thuộc về user: ${garden.user_id}`);
+    
     // Kiểm tra xem người dùng có quyền truy cập vườn này không
-    if (garden.user_id.toString() !== req.user._id.toString()) {
+    // Skip kiểm tra quyền nếu người dùng là admin
+    if (req.user.role !== 'admin' && garden.user_id.toString() !== req.user._id.toString()) {
+      console.log(`Người dùng ${req.user._id} không có quyền truy cập vườn ${garden._id} (thuộc về ${garden.user_id})`);
       return res.status(403).json({
         success: false,
         message: 'Bạn không có quyền truy cập vườn này'
@@ -31,12 +56,17 @@ exports.getLatestSensorData = async (req, res, next) => {
       .sort({ timestamp: -1 });
     
     if (!latestSensorData) {
+      console.log(`Không có dữ liệu cảm biến cho vườn ID: ${gardenId}`);
+      
+      // Trả về lỗi khi không tìm thấy dữ liệu
       return res.status(404).json({
         success: false,
-        message: 'Chưa có dữ liệu cảm biến nào cho vườn này'
+        message: 'Chưa có dữ liệu cảm biến nào cho vườn này',
+        error: 'NO_SENSOR_DATA'
       });
     }
     
+    console.log(`Đã tìm thấy dữ liệu cảm biến thực cho vườn ID: ${gardenId}`);
     res.status(200).json({
       success: true,
       data: {
@@ -45,6 +75,7 @@ exports.getLatestSensorData = async (req, res, next) => {
       }
     });
   } catch (error) {
+    console.error('Lỗi khi lấy dữ liệu cảm biến:', error);
     next(error);
   }
 };

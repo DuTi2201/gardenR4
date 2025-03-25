@@ -11,9 +11,17 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const user = authService.getCurrentUser();
-    if (user) {
-      setCurrentUser(user);
+    // Kiểm tra xem có thông tin người dùng đã lưu trong localStorage không
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        console.log('User from localStorage:', user);
+        setCurrentUser(user);
+      } catch (error) {
+        console.error('Error parsing user from localStorage:', error);
+        localStorage.removeItem('user');
+      }
     }
     setLoading(false);
   }, []);
@@ -22,9 +30,9 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await authService.login(email, password);
-      setCurrentUser(data.user);
-      return data;
+      const userData = await authService.login(email, password);
+      setCurrentUser(userData);
+      return userData;
     } catch (err) {
       setError(err.response?.data?.message || 'Đăng nhập thất bại');
       throw err;

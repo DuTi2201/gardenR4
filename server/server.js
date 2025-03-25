@@ -21,6 +21,8 @@ const streamRoutes = require('./routes/streamRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const analysisRoutes = require('./routes/analysisRoutes');
 const { logRouter } = require('./routes/logRoutes');
+const testRoutes = require('./routes/testRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
@@ -28,6 +30,13 @@ const { protect } = require('./middleware/auth');
 
 // Import services
 const mqttService = require('./services/mqttService');
+
+// Import controllers
+const { getLatestSensorData, getSensorDataHistory, getSensorDataStats } = require('./controllers/sensorData');
+const { getDevices, createDevice, getDevicesStatus, controlDevice } = require('./controllers/devices');
+const { analyzeGarden, getLatestAnalysis } = require('./controllers/analysis');
+const { getImages, getImage, captureImage, deleteImage } = require('./controllers/images');
+const { getSchedules, createSchedule, updateSchedule, deleteSchedule } = require('./controllers/schedules');
 
 // Create Express application
 const app = express();
@@ -44,6 +53,12 @@ app.use(express.json());
 app.use(cors());
 app.use(helmet());
 
+// Log các request tới server
+app.use((req, res, next) => {
+  console.log(`[SERVER] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // Tạo route API đơn giản thay thế
 app.get('/api', (req, res) => {
   res.json({ 
@@ -55,11 +70,52 @@ app.get('/api', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+
+// Đăng ký các endpoint cảm biến riêng lẻ 
+app.get('/api/gardens/:id/sensor-data', protect, getLatestSensorData);
+app.get('/api/gardens/:id/sensor-data/history', protect, getSensorDataHistory);
+app.get('/api/gardens/:id/sensor-data/stats', protect, getSensorDataStats);
+
+// Đăng ký endpoint devices riêng lẻ (giải pháp tạm thời)
+app.get('/api/gardens/:id/devices', protect, getDevices);
+app.post('/api/gardens/:id/devices', protect, createDevice);
+app.get('/api/gardens/:id/devices/status', protect, getDevicesStatus);
+
+// Thêm endpoint điều khiển thiết bị
+app.post('/api/gardens/:id/devices/control', protect, controlDevice);
+
+// Đăng ký endpoint lịch trình
+app.get('/api/gardens/:id/schedules', protect, getSchedules);
+app.post('/api/gardens/:id/schedules', protect, createSchedule);
+app.put('/api/gardens/:id/schedules/:scheduleId', protect, updateSchedule);
+app.delete('/api/gardens/:id/schedules/:scheduleId', protect, deleteSchedule);
+
+// Đăng ký endpoint phân tích riêng lẻ
+app.get('/api/gardens/:id/analysis', protect, getLatestAnalysis);
+app.post('/api/gardens/:id/analyze', protect, analyzeGarden);
+
+// Đăng ký endpoint hình ảnh riêng lẻ
+app.get('/api/gardens/:id/images', protect, getImages);
+app.get('/api/gardens/:id/images/:imageId', protect, getImage);
+app.post('/api/gardens/:id/images/capture', protect, captureImage);
+app.delete('/api/gardens/:id/images/:imageId', protect, deleteImage);
+
+// Đăng ký garden routes (bao gồm cả device routes)
 app.use('/api/gardens', gardenRoutes);
+
+// Các routes khác
 app.use('/api/devices', deviceRouter);
 app.use('/api/logs', logRouter);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/analysis', analysisRoutes);
+app.use('/api/test', testRoutes);
+
+// Thêm debug middleware cho admin routes
+app.use('/api/admin', (req, res, next) => {
+  console.log(`Admin API Request: ${req.method} ${req.originalUrl}`);
+  console.log('Headers:', req.headers);
+  next();
+}, adminRoutes);
 
 // Error Handler Middleware
 app.use(errorHandler);
