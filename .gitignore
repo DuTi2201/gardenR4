@@ -43,9 +43,20 @@ jspm_packages/
 # Build files
 /build
 /dist
+/frontend/build
+/frontend/dist
+/frontend/.cache
 
 # IDE files
 .idea/
 .vscode/
 *.sublime-project
-*.sublime-workspace 
+*.sublime-workspace
+*.swp
+*.swo
+
+# Project specific files
+/server/token.txt
+/server/.env
+/frontend/.env
+/server/logs/
