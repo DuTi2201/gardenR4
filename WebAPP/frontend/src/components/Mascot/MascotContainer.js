@@ -1,6 +1,5 @@
 import React, { useCallback, memo, useState, useEffect } from 'react';
 import { Box, Typography, Paper } from '@mui/material';
-import Mascot from './Mascot';
 import { useMascot } from './MascotContext';
 
 /**
@@ -93,48 +92,8 @@ const MascotContainer = () => {
     return {};
   }, [position]);
 
-  if (!visible) return null;
-
-  return (
-    <>
-      <Mascot
-        mood={mood}
-        size={size}
-        position={position}
-        style={customStyle}
-      />
-      
-      {message && messageVisible && (
-        <Box sx={getBubblePosition()}>
-          <Paper
-            elevation={3}
-            sx={{
-              p: 2,
-              maxWidth: 250,
-              borderRadius: 2,
-              position: 'relative',
-              '&:after': getBubbleArrowStyle(),
-              animation: 'fadeIn 0.3s ease-in-out',
-              '@keyframes fadeIn': {
-                '0%': {
-                  opacity: 0,
-                  transform: 'translateY(10px)'
-                },
-                '100%': {
-                  opacity: 1,
-                  transform: 'translateY(0)'
-                }
-              },
-              opacity: messageVisible ? 1 : 0,
-              transition: 'opacity 0.3s ease-out',
-            }}
-          >
-            <Typography variant="body1">{message}</Typography>
-          </Paper>
-        </Box>
-      )}
-    </>
-  );
+  // Ẩn hoàn toàn component này
+  return null;
 };
 
 // Tối ưu bằng cách sử dụng memo

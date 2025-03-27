@@ -99,7 +99,10 @@ const updateProfile = async (userData) => {
 const changePassword = async (passwordData) => {
   try {
     console.log('Changing password');
-    const response = await api.put('/auth/password', passwordData);
+    const response = await api.put('/auth/password', {
+      currentPassword: passwordData.oldPassword,
+      newPassword: passwordData.newPassword
+    });
     return response.data;
   } catch (error) {
     console.error('Change password error:', error.response?.data || error.message);

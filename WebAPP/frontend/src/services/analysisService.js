@@ -1,4 +1,7 @@
 import api from './api';
+import axios from 'axios';
+// Sử dụng khai báo trực tiếp thay vì import từ config
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 const analysisService = {
   // Phân tích dữ liệu vườn
@@ -44,8 +47,8 @@ const analysisService = {
   // Lấy lịch sử phân tích
   getAnalysisHistory: async (gardenId) => {
     try {
-      console.log('Gọi API lấy lịch sử phân tích:', `/analysis/gardens/${gardenId}/analysis/history`);
-      const response = await api.get(`analysis/gardens/${gardenId}/analysis/history`);
+      console.log('Gọi API lấy lịch sử phân tích:', `/gardens/${gardenId}/analysis/history`);
+      const response = await api.get(`gardens/${gardenId}/analysis/history`);
       console.log('Phản hồi từ API lấy lịch sử phân tích:', response.data);
       return response.data;
     } catch (error) {
@@ -57,12 +60,23 @@ const analysisService = {
   // Xóa một phân tích khỏi lịch sử
   deleteAnalysis: async (gardenId, analysisId) => {
     try {
-      console.log('Gọi API xóa phân tích:', `/analysis/gardens/${gardenId}/analysis/${analysisId}`);
-      const response = await api.delete(`analysis/gardens/${gardenId}/analysis/${analysisId}`);
+      console.log('Gọi API xóa phân tích:', `/gardens/${gardenId}/analysis/${analysisId}`);
+      const response = await api.delete(`gardens/${gardenId}/analysis/${analysisId}`);
       console.log('Phản hồi từ API xóa phân tích:', response.data);
       return response.data;
     } catch (error) {
       console.error('Lỗi khi gọi API xóa phân tích:', error.response || error);
+      throw error;
+    }
+  },
+
+  // Phân tích hình ảnh cho một vườn
+  analyzeImage: async (gardenId, imageId) => {
+    try {
+      const response = await axios.post(`${API_URL}/gardens/${gardenId}/analyze`, { imageId });
+      return response.data;
+    } catch (error) {
+      console.error('Error analyzing image:', error);
       throw error;
     }
   }

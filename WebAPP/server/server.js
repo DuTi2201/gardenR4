@@ -35,7 +35,7 @@ const mqttService = require('./services/mqttService');
 // Import controllers
 const { getLatestSensorData, getSensorDataHistory, getSensorDataStats } = require('./controllers/sensorData');
 const { getDevices, createDevice, getDevicesStatus, controlDevice, toggleAutoMode } = require('./controllers/devices');
-const { analyzeGarden, getLatestAnalysis } = require('./controllers/analysis');
+const { analyzeGarden, getLatestAnalysis, getAnalysisHistory, deleteAnalysis } = require('./controllers/analysis');
 const { getImages, getImage, captureImage, deleteImage } = require('./controllers/images');
 const { getSchedules, createSchedule, updateSchedule, deleteSchedule } = require('./controllers/schedules');
 const gardensController = require('./controllers/gardens');
@@ -107,6 +107,8 @@ app.delete('/api/gardens/:id/schedules/:scheduleId', protect, deleteSchedule);
 // Đăng ký endpoint phân tích riêng lẻ
 app.get('/api/gardens/:id/analysis', protect, getLatestAnalysis);
 app.post('/api/gardens/:id/analyze', protect, analyzeGarden);
+app.get('/api/gardens/:id/analysis/history', protect, getAnalysisHistory);
+app.delete('/api/gardens/:id/analysis/:analysisId', protect, deleteAnalysis);
 
 // Đăng ký endpoint hình ảnh riêng lẻ
 app.get('/api/gardens/:id/images', protect, getImages);
@@ -140,6 +142,8 @@ app.use(errorHandler);
 
 // Connect to MongoDB
 console.log("MONGODB_URI:", process.env.MONGODB_URI);
+console.log("GEMINI_API_KEY exists:", process.env.GEMINI_API_KEY ? "YES" : "NO");
+
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('MongoDB connected...');

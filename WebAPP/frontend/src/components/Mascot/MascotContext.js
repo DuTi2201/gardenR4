@@ -18,7 +18,7 @@ export const useMascot = () => useContext(MascotContext);
  */
 export const MascotProvider = ({ children }) => {
   // State cho trạng thái linh vật
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(false);
   const [mood, setMood] = useState('static');
   const [size, setSize] = useState('medium');
   const [position, setPosition] = useState('bottom-right');
